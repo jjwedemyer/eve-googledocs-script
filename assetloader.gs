@@ -80,6 +80,9 @@ function parseAssets(rows, parent, locationID, location) {
  */
 
 function assetList(type, keyID, vCode, characterID, location) {
+	var cache = CacheService.getPublicCache();
+  var cached = cache.get("assetList"+characterID);
+	if (cached == null) {
 	var url = "https://api.eveonline.com/" + type + "/AssetList.xml.aspx?keyID=" + keyID + "&vCode=" + vCode + "&characterID=" + characterID;
 	var parameters = {
 		method : "get",
@@ -88,6 +91,8 @@ function assetList(type, keyID, vCode, characterID, location) {
 
 	var xmlFeed = UrlFetchApp.fetch(url, parameters).getContentText();
 	var xml = XmlService.parse(xmlFeed);
+	cache.put("assetList"+characterID,xml,7200); // caching for 2h
+}
 
 	var ss = SpreadsheetApp.getActiveSpreadsheet();
 	var stationSheet = ss.getSheetByName("station");
@@ -108,4 +113,29 @@ function assetList(type, keyID, vCode, characterID, location) {
 		parseAssets(rows, null, null, location);
 	}
 	return assets;
+}
+
+/**
+*/
+function minerals(type,keyID,vCode,characterID,location) {
+
+	var whitelist = [34, 35, 36, 37, 38, 39, 40, 44, 3683, 3689, 9832, 9848, 11399, 16272, 16273, 16275, 17889];
+	var filteredAssets = new Array();
+	var assets = assetList(type,keyID,vCode,characterID,location);
+	for (var i = 0; i < assets.length; i++) {
+		if ((assets[i][2] == "Type ID")||(elem(whitelist,assets[i][2]))) {
+			filteredAssets.push(assets[i]);
+		}
+	}
+	filteredAssets.sort(function(a,b){
+		return a[2] - b[2];
+	});
+	return filteredAssets;
+}
+
+function elem(array,elem){
+  for(var i =0;i<array.length; i++){
+    if(elem === array[i]) return true;
+  }
+  return false;
 }
